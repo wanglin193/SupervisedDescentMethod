@@ -44,7 +44,7 @@ hog.compute(Img, des, winStride, Size(0, 0), pos);
 
   * green dots: after all five rounds descent iteration 
 
-![test_tile](test_tile.png)
+![test_tile](https://github.com/wanglin193/SupervisedDescentMethod/blob/master/crop/test_tile.png)
 
 
 
