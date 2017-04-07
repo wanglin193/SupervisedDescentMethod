@@ -2,21 +2,7 @@
 
 * The theory is based on the idea of _Supervised Descent Method and Its Applications to Face Alignment_, from X. Xiong & F. De la Torre, CVPR 2013
 
-* OpenCV's Haar-based face detection only has around 75% detection rate, so for those in trainset fail to detect faces,the face rectangle shoud be initialized by annotated eyes' postions. So I leanrn a matrix to map eyes' postions to face rectangle:
-
-$$
-\left[
-\begin{matrix} x_{Rect}  \\ y_{Rect}  \\ w_{Rect}  \\ \end{matrix}
-\right]=
-\left[
-\begin{matrix}
-1.3628311&  -0.11136246& -0.43026733\\
-0.63790131&  0.90767193&  -0.70386124\\
--1.6659698&  0.2334137&  1.8136368\\
-\end{matrix}
-\right]
-\left[\begin{matrix} x_{leye}\\ x_{reye} \\ (y_{leye}+y_{reye})/2 \\ \end{matrix} \right]
-$$
+* OpenCV's Haar-based face detection only has around 75% detection rate, so for those in trainset fail to detect faces, the face rectangle shoud be initialized by annotated eyes' postions. So I leanrn a matrix to map eyes' postions to face rectangle.
 
 * OpenCV ```cv::HOGDescriptor``` is used to extract HOG feature descriptors around face landmarks' region like this:
 
