@@ -2,21 +2,25 @@
 #include <vector>
 #include <iostream>
 #include <fstream>
- 
+
 using namespace std;
 using namespace cv;
+//-------------params for training----------
 const int NUM_ROUND = 4;
 vector<HOGDescriptor> hogs(NUM_ROUND);
-int num_lmks[] = { -1,15,22,0 };//-1:use whole face ROI; 0: use all 68 lmks 
-int id_lmks[][68] = {
-  { 5,11,33,36,39,42,45,57 },//8
+#define HOG_GLOBAL -1
+#define HOG_ALL 0
+
+int num_lmks[NUM_ROUND] = { HOG_GLOBAL,15,22,HOG_ALL };
+int id_lmks[NUM_ROUND][68] = { { },
   { 2,5,8,11,14, 31,33,35, 36, 39,42,45,56,57,58 },//15
   { 1, 3, 6, 8, 10, 13, 15, 18, 20, 23, 25, 30, 31, 35, 36, 39, 42, 45, 48, 51, 54, 57 },//22
-  { /*1, 3, 6, 8, 10, 13, 15, 18, 20, 23, 25, 27, 30, 31, 35, 36, 39, 42, 45, 48, 51, 54, 57*/ } };//23
-string face_model = "haarcascade_frontalface_alt2.xml";
+  { } };
+
 int normal_face_width = 128;   //normalize face detect rectangle 
 int border = 64;    //normalize ROI size = normal_face_width + 2*border
-
+string face_model = "haarcascade_frontalface_alt2.xml";
+//--------------------------------------------
 //in case fail to detect face, use this to init face Rect: 
 //rect_x_y_w = M_eyes_to_rect * eyes_x1_x2_y
 cv::Mat M_eyes_to_rect;
@@ -24,7 +28,8 @@ typedef vector<cv::Point2f> shape2d;
 shape2d shape_mean;
 vector<shape2d> train_shapes;
 vector<cv::Mat> train_samples;
-inline void set_global_hog(HOGDescriptor&hog, int roi_size, int pix_in_cell, int cell_in_block, int n_orient)
+
+void set_global_hog(HOGDescriptor&hog, int roi_size, int pix_in_cell, int cell_in_block, int n_orient)
 {
   int cell_in_win = (int)((float)roi_size / (float)pix_in_cell);
   hog.winSize = Size(cell_in_win*pix_in_cell, cell_in_win*pix_in_cell);
@@ -33,16 +38,16 @@ inline void set_global_hog(HOGDescriptor&hog, int roi_size, int pix_in_cell, int
   hog.blockStride = hog.cellSize;
   hog.nbins = n_orient;
 }
-inline void set_hog_params(HOGDescriptor&hog, int pix_in_cell, int cell_in_block, int n_orient)
+void set_hog_params(HOGDescriptor&hog, int pix_in_cell, int cell_in_block, int n_orient)
 {
-   hog.cellSize = Size(pix_in_cell, pix_in_cell);
-   hog.blockSize = cv::Size(cell_in_block * hog.cellSize.width, cell_in_block * hog.cellSize.height);
-   hog.winSize = hog.blockSize; //this define feature region
-   hog.blockStride = hog.winSize;//useless when set hog.winSize = hog.blockSize; 
-   hog.nbins = n_orient;
+  hog.cellSize = Size(pix_in_cell, pix_in_cell);
+  hog.blockSize = cv::Size(cell_in_block * hog.cellSize.width, cell_in_block * hog.cellSize.height);
+  hog.winSize = hog.blockSize; //this define feature region
+  hog.blockStride = hog.winSize;//useless when set hog.winSize = hog.blockSize; 
+  hog.nbins = n_orient;
 }
 void set_HOGs()
-{   
+{
   //set_hog_params(hogs[0], (int)(normal_face_width*0.15 + 0.5), 4, 8);
   set_global_hog(hogs[0], normal_face_width + border, 8, 4, 9);
   int pix_in_cell = (int)(normal_face_width*0.1 + 0.5);
@@ -52,10 +57,11 @@ void set_HOGs()
   if (NUM_ROUND > 4) set_hog_params(hogs[4], pix_in_cell, 3, 4);
   for (int i = 0; i < hogs.size(); i++)
   {
-    cout << "HOG r = "<<i<<" winsize: " << hogs[i].winSize << ", length of descriptor: " << hogs[i].getDescriptorSize() << endl;
-    if(num_lmks[i]>0) for (int j = 0; j < num_lmks[i]; j++)  cout << id_lmks[i][j]<<",";
-    else { num_lmks[i] == 0 ? cout << "use all 68 lmks" : cout << "use whole face ROI"; };  cout << endl;      
+    cout << "HOG Round: " << i << " winsize: " << hogs[i].winSize << ", length of descriptor: " << hogs[i].getDescriptorSize() << endl;
+    if (num_lmks[i] > 0) for (int j = 0; j < num_lmks[i]; j++)  cout << id_lmks[i][j] << ",";
+    else { num_lmks[i] == 0 ? cout << "  use all 68 lmks" : cout << "  use whole face ROI"; };  cout << endl;
   }
+  cout << endl;
 }
 //L = M*R ---> L*RT = M*R*RT ---> L*RT*(lambda*I+R*RT)^-1 = M
 cv::Mat solve_norm_equation(cv::Mat& L, cv::Mat& R)
@@ -68,7 +74,7 @@ cv::Mat solve_norm_equation(cv::Mat& L, cv::Mat& R)
 
   for (int i = 0; i < RRT.cols - 1; i++)
     RRT.at<float>(i, i) = lambda + RRT.at<float>(i, i);
-  M = LRT*RRT.inv(cv::DECOMP_LU);  
+  M = LRT*RRT.inv(cv::DECOMP_LU);
   cout << " done." << endl;
   return M;
 }
@@ -129,7 +135,7 @@ shape2d read_pts_landmarks(std::string filename)
   }
   return landmarks;
 };
-void read_names_pair(const string &strListName, const string &strFilePath,const string& pts_ext, const string& img_ext,
+void read_names_pair(const string &strListName, const string &strFilePath, const string& pts_ext, const string& img_ext,
   vector<string> &vstrShapeName, vector<string> &vstrImageName)
 {
   ifstream fNameFile;
@@ -153,7 +159,7 @@ void read_names_pair(const string &strListName, const string &strFilePath,const 
   }
 }
 void train_map_facerect_and_eyes(vector<string>& vstrPts, vector<string>& vstrImg)
-{ 
+{
   int eyes_index[4] = { 36,39,42,45 };
   cv::CascadeClassifier face_cascade;
   if (!face_cascade.load(face_model))
@@ -166,7 +172,7 @@ void train_map_facerect_and_eyes(vector<string>& vstrPts, vector<string>& vstrIm
   int good = 0, numsamples = 200;
   cv::Mat L = Mat::zeros(3, 3, CV_32F);
   cv::Mat R = Mat::zeros(3, 3, CV_32F);
-  cv::Mat M ; //L=M*R
+  cv::Mat M; //L=M*R
   for (int i = 0; i < numsamples/*vstrPts.size()*/; i++)
   {
     shape2d pts = read_pts_landmarks(vstrPts[i]);
@@ -199,21 +205,20 @@ void train_map_facerect_and_eyes(vector<string>& vstrPts, vector<string>& vstrIm
   }
   cout << "Collect " << good << " good faces in " << numsamples << " images. " << endl;
 
-  M = L*R.inv(); 
+  M = L*R.inv();
   M_eyes_to_rect = M.clone();
   cout << "M_eyes_to_rect:\n" << M_eyes_to_rect << endl << endl;
 }
 void preprocess_images(vector<string>& vstrPts, vector<string>& vstrImg)
-{ 
+{
   int eyes_index[4] = { 36,39,42,45 };
   cv::CascadeClassifier face_cascade;
   face_cascade.load(face_model);
- 
-  bool showimg = false; 
+
+  bool showimg = false;
   Mat imcanvas;
 
-  cout << "Collecting cropped "<< vstrPts.size() <<" faces and normlized shapes ..." << endl;
-
+  cout << "Collecting cropped " << vstrPts.size() << " faces and normlized shapes ...";
   int count = 0;
   for (int i = 0; i < vstrPts.size(); i++)
   {
@@ -238,7 +243,7 @@ void preprocess_images(vector<string>& vstrPts, vector<string>& vstrImg)
       if (detected_faces[i].contains(p0) && detected_faces[i].contains(p1))
         idx = i;
     }
- 
+
     cv::Rect rectface;
     //from eyes' position  to get face detection rectangle
     if (detected_faces.size() == 0 || idx == -1)
@@ -280,7 +285,7 @@ void preprocess_images(vector<string>& vstrPts, vector<string>& vstrImg)
 
     //////crop face region   
     int normal_roi_width = normal_face_width + border * 2;
-    cv::Mat roiImg ;
+    cv::Mat roiImg;
     int left = rectface.x, right = left + rectface.width - 1;
     int top = rectface.y, low = top + rectface.height - 1;
 
@@ -347,12 +352,11 @@ void preprocess_images(vector<string>& vstrPts, vector<string>& vstrImg)
     }
   }//end collecting
 
-  //do averaging 
-  for (int j = 0; j < shape_mean.size(); j++)    shape_mean[j] = shape_mean[j]*(1.0f /(float)count);
-
+  for (int j = 0; j < shape_mean.size(); j++)    shape_mean[j] = shape_mean[j] * (1.0f / (float)count);
+  cout << " done." << endl;
   if (showimg)
-  {  
-    cv::Mat avgimg,temp;
+  {
+    cv::Mat avgimg, temp;
     train_samples[0].convertTo(avgimg, CV_32FC1);
 
     for (int i = 1; i < train_samples.size(); i++)
@@ -360,8 +364,8 @@ void preprocess_images(vector<string>& vstrPts, vector<string>& vstrImg)
       train_samples[i].convertTo(temp, CV_32FC1);
       avgimg = avgimg + temp;
     }
-    avgimg = avgimg / train_samples.size();  
-   
+    avgimg = avgimg / train_samples.size();
+
     HOGDescriptor hog = hogs[0]; //draw hog[0] feature rect
     int half_wid = hog.blockSize.width >> 1;
     avgimg.convertTo(imcanvas, CV_8UC1);
@@ -369,7 +373,7 @@ void preprocess_images(vector<string>& vstrPts, vector<string>& vstrImg)
 
     for (int j = 0; j < shape_mean.size(); j++)
     {
-      cv::circle(imcanvas, cv::Point(shape_mean[j].x, shape_mean[j].y), 2, cv::Scalar(0,0,255), -1);
+      cv::circle(imcanvas, cv::Point(shape_mean[j].x, shape_mean[j].y), 2, cv::Scalar(0, 0, 255), -1);
       Rect r(shape_mean[j].x - half_wid, shape_mean[j].y - half_wid, hog.blockSize.width, hog.blockSize.width);
       cv::rectangle(imcanvas, r, cv::Scalar(0, 255, 0), 1);
     }
@@ -378,16 +382,16 @@ void preprocess_images(vector<string>& vstrPts, vector<string>& vstrImg)
     waitKey();
   }
 }
-inline vector<float> extract_HOG_descriptor( Mat & roiImg, vector<Point2f>& pt_shape, HOGDescriptor& hog, int num_idx_lmk, int* idx_lmk )
+vector<float> extract_HOG_descriptor(Mat & roiImg, vector<Point2f>& pt_shape, HOGDescriptor& hog, int num_idx_lmk, vector<int>& idx_lmk)
 {
   int half_wid = hog.winSize.width >> 1;
   vector<float> des;
   vector<Point> pos;
-  if (num_idx_lmk == -1) //face region
+  if (num_idx_lmk == HOG_GLOBAL) //face region
   {
     pos.push_back(Point(roiImg.cols / 2 - half_wid, roiImg.rows / 2 - half_wid));
   }
-  else if (num_idx_lmk == 0)//all lmks
+  else if (num_idx_lmk == HOG_ALL)
   {
     for (int j = 0; j < pt_shape.size(); j++)
       pos.push_back(Point(pt_shape[j].x - half_wid + 0.5, pt_shape[j].y - half_wid + 0.5));
@@ -413,7 +417,7 @@ bool mats_write(const char* filename, vector<Mat>& vM)
   int num = vM.size();
   fwrite(&num, sizeof(int), 1, file);
 
-  for (int i = 0; i<num; i++)
+  for (int i = 0; i < num; i++)
   {
     Mat M = vM[i];// cout << M.step << " " << M.cols << "*" << M.rows << endl;
     int headData[3] = { M.cols, M.rows, M.type() };
@@ -423,40 +427,39 @@ bool mats_write(const char* filename, vector<Mat>& vM)
   fclose(file);
   return true;
 }
-vector<Mat> mats_read(const char* filename)
-{
-  vector<Mat> vM;
-  FILE* file = fopen(filename, "rb");
-  if (file == NULL)
-    return vM;
-
-  int num;
-  fread(&num, sizeof(int), 1, file);
-
-  for (int i = 0; i<num; i++)
-  {
-    int headData[3];
-    fread(headData, sizeof(int), 3, file);
-    Mat M(headData[1], headData[0], headData[2]);
-    fread(M.data, sizeof(char), M.step * M.rows, file);
-    vM.push_back(M);
-  }
-  fclose(file);
-  return vM;
-}
-void draw_shape(Mat& imcanvas,shape2d& pts, cv::Scalar color)
+void draw_shape(Mat& imcanvas, shape2d& pts, cv::Scalar color)
 {
   for (int j = 0; j < pts.size(); j++)
-      cv::circle(imcanvas, cv::Point(pts[j].x, pts[j].y), 2, color, -1);
+    cv::circle(imcanvas, cv::Point(pts[j].x, pts[j].y), 2, color, -1);
+}
+void set_idx_lmks(vector<int>& num_lmks, vector<vector<int> >& lmk_all)
+{
+  for (int i = 0; i < num_lmks.size(); i++)
+  {
+    if (num_lmks[i] == HOG_GLOBAL || num_lmks[i] == HOG_ALL)
+    {
+      vector<int> t;
+      lmk_all.push_back(t);
+    }
+    else
+    {
+      vector<int> t(id_lmks[i], id_lmks[i] + num_lmks[i]);
+      lmk_all.push_back(t);
+    }
+  }
 }
 void train_by_regress()
 {
   int numsample_test = 100; //left some for test
-  int numsample = train_shapes.size()- numsample_test;
+  int numsample = train_shapes.size() - numsample_test;
   int numpts = shape_mean.size();
 
-  cout << "Training SDM on "<< numsample <<" images, left " << numsample_test << " for testing ..." << endl;
-  
+  cout << "Training SDM on " << numsample << " images, left " << numsample_test << " for testing ..." << endl;
+
+  vector<int> vnum_lmks(num_lmks, num_lmks + NUM_ROUND);
+  vector<vector<int> > vlmk_all;
+  set_idx_lmks(vnum_lmks, vlmk_all);
+
   vector<shape2d> shape_current_all;
   //init as meashape
   for (int i = 0; i < numsample; i++)
@@ -466,12 +469,12 @@ void train_by_regress()
   Mat mFeature;
   vector<cv::Mat> Mreg;
   for (int r = 0; r < hogs.size(); r++)
-  {   
+  {
     cout << "---- Round " << r << " -----" << endl;
     for (int i = 0; i < numsample; i++)
     {
-      Mat roiImg = train_samples[i];     
-      vector<float>  des = extract_HOG_descriptor(roiImg, shape_current_all[i], hogs[r], num_lmks[r], id_lmks[r]);
+      Mat roiImg = train_samples[i];
+      vector<float>  des = extract_HOG_descriptor(roiImg, shape_current_all[i], hogs[r], vnum_lmks[r], vlmk_all[r]);
       if (i == 0)
       {
         mFeature.create(des.size(), numsample, CV_32F);
@@ -503,13 +506,34 @@ void train_by_regress()
     E /= numsample;
     cout << "  Avg Shape Error = " << E << endl;
   }//end training round  
-  
-  mats_write("face_sdm.bin", Mreg);
-  cout << "Write to sdm.bin" << endl;
+
+  cout << "Save training result ...";
+  string name_M = "face_sdm.bin";
+  FileStorage fs("face_sdm.yml", FileStorage::WRITE);
+  if (fs.isOpened())
+  {
+    fs << "NUM_LMKS" << numpts;
+    fs << "TRAIN_ROUND" << NUM_ROUND;
+    fs << "LMKS_EACH_ROUND" << vnum_lmks;
+    for (int i = 0; i < vlmk_all.size(); i++)
+    {
+      string id_lmk = "ID_IN_ROUND_";
+      //if (vnum_lmks[i] != -1 && vnum_lmks[i] != 0)
+      fs << id_lmk + to_string(_Longlong(i)) << vlmk_all[i];
+    }
+
+    fs << "NORMAL_WID" << normal_face_width << "NORMAL_BORDER" << border;
+    fs << "OpenCV_HAAR" << face_model;
+    fs << "SDM_Mat" << name_M;
+    fs << "Mean_Shape" << shape_mean;
+    fs.release();
+  }
+  mats_write(name_M.c_str(), Mreg);
+  cout << " done." << endl;
 
   if (1)
   {
-    cout << "Testing on unseen images ..........\n";
+    cout << "Testing on unseen images ... ";
     Mat imcanvas;
     for (int i = numsample; i < train_samples.size(); i++)//on rest image in trainset
     {
@@ -519,19 +543,20 @@ void train_by_regress()
       shape2d pts = shape_mean;
       for (int r = 0; r < Mreg.size(); r++)
       {
-        vector<float>  des = extract_HOG_descriptor(roiImg, pts, hogs[r], num_lmks[r], id_lmks[r]);
+        vector<float>  des = extract_HOG_descriptor(roiImg, pts, hogs[r], vnum_lmks[r], vlmk_all[r]);
         Mat rr = Mat(des.size(), 1, CV_32F, des.data());
-        Mat v_shape = Mreg[r] *rr + shape2d_to_mat(pts);
+        Mat v_shape = Mreg[r] * rr + shape2d_to_mat(pts);
         pts = mat_to_shape2d(v_shape);
 
-        if(r==0) draw_shape(imcanvas, pts, cv::Scalar(0, 0, 255)); 
+        if (r == 0) draw_shape(imcanvas, pts, cv::Scalar(0, 0, 255));
       }
       draw_shape(imcanvas, pts, cv::Scalar(0, 255, 0));
       char name[200];
       sprintf(name, "./crop/test_%d.png", i);
       imwrite(name, imcanvas);
     }
-  } 
+    cout << "done\n";
+  }
 }
 void main()
 {
@@ -545,6 +570,4 @@ void main()
 
   preprocess_images(vstrPts, vstrImg);
   train_by_regress();
-  //TODO : load sdm model to test on /testset
-  vector<cv::Mat> Mreg = mats_read("face_sdm.bin");
 }
