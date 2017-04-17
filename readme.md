@@ -9,6 +9,7 @@
 ``` c++
 Mat Img;
 vector<Point2f> pt_shape;
+...
 HOGDescriptor hog;
 int half_wid = hog.blockSize.width/2;
 vector<float> des;
@@ -22,7 +23,7 @@ hog.compute(Img, des, winStride, Size(0, 0), pos);
 
 * Some samples in trainset are used for testing the model, so the preprocessing steps are same for all images: crop face region (by face detection or by eyes' position) and align it to same size, then add borders to extract HOGs.
 
-* Some results (only 22 landmarks used here): 
+* Some results: 
 
   * blue dots: init position (meanshape), same for all 
 
@@ -30,7 +31,7 @@ hog.compute(Img, des, winStride, Size(0, 0), pos);
 
   * green dots: after all five rounds descent iteration 
 
-![test_tile](https://github.com/wanglin193/SupervisedDescentMethod/blob/master/crop/test_tile.png)
+![test_tile](https://github.com/wanglin193/SupervisedDescentMethod/blob/master/crop/test_tile.jpg)
 
 
 
