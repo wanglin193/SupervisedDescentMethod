@@ -1,6 +1,23 @@
 # SDM for face alignment
 
-* Some results: 
+1. Try training result on test set
+~~~
+cd ./bin
+./test_sdm_facealign
+~~~
+
+2. Create pts file name list for load training images, use 
+~~~
+cd trainset
+ls *.pts -1>ptlist.txt
+~~~
+   or in Windows use
+~~~
+cd trainset
+dir *.pts/b>ptlist.txt
+~~~
+
+3. Some results: 
 
   * blue dots: init position (meanshape), same for all 
 
