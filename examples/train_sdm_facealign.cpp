@@ -44,6 +44,7 @@ cv::Mat solve_norm_equation(cv::Mat& L, cv::Mat& R)
   return M;
 }
 
+//3dof face rect to 3dof eyes position
 void train_map_facerect_and_eyes(vector<string>& vstrPts, vector<string>& vstrImg)
 {
   int eyes_index[4] = { 36,39,42,45 };
@@ -102,7 +103,7 @@ void preprocess_images(vector<string>& vstrPts, vector<string>& vstrImg)
   cv::CascadeClassifier face_cascade;
   face_cascade.load(face_model);
 
-  bool showimg = false;
+  bool showimg = true;
   Mat imcanvas;
   RNG rng((unsigned)time(NULL));
   cout << "Collecting cropped " << vstrPts.size() << " faces and normlized shapes ...";

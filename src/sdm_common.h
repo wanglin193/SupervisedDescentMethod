@@ -1,12 +1,18 @@
+#pragma once
+
 using namespace std;
 using namespace cv;
 
 #define HOG_GLOBAL -1
 #define HOG_ALL 0
 
+static double time_begin;
+#define TIC (time_begin = (double)cvGetTickCount());  
+#define TOC (printf("               Time = %g ms   \r", ((double)cvGetTickCount() - time_begin)/((double)cvGetTickFrequency()*1000.) ) );
+
 typedef vector<cv::Point2f> shape2d;
 
-void set_global_hog(HOGDescriptor&hog, int roi_size, int pix_in_cell, int cell_in_block, int n_orient)
+inline void set_global_hog(HOGDescriptor&hog, int roi_size, int pix_in_cell, int cell_in_block, int n_orient)
 {
   int cell_in_win = (int)((float)roi_size / (float)pix_in_cell);
   hog.winSize = Size(cell_in_win*pix_in_cell, cell_in_win*pix_in_cell);
@@ -15,7 +21,7 @@ void set_global_hog(HOGDescriptor&hog, int roi_size, int pix_in_cell, int cell_i
   hog.blockStride = hog.cellSize;
   hog.nbins = n_orient;
 }
-void set_hog_params(HOGDescriptor&hog, int pix_in_cell, int cell_in_block, int n_orient)
+inline void set_hog_params(HOGDescriptor&hog, int pix_in_cell, int cell_in_block, int n_orient)
 {
   hog.cellSize = Size(pix_in_cell, pix_in_cell);
   hog.blockSize = cv::Size(cell_in_block * hog.cellSize.width, cell_in_block * hog.cellSize.height);
@@ -23,7 +29,7 @@ void set_hog_params(HOGDescriptor&hog, int pix_in_cell, int cell_in_block, int n
   hog.blockStride = hog.winSize;//useless when set hog.winSize = hog.blockSize; 
   hog.nbins = n_orient;
 }
-void set_HOGs(vector<HOGDescriptor>& hogs,int global_size,vector<int>& vnum_lmks)
+inline void set_HOGs(vector<HOGDescriptor>& hogs,int global_size,vector<int>& vnum_lmks)
 {
   int num_hog = hogs.size();
   int pix_in_cell = (int)(global_size*0.1 + 0.5);
@@ -39,7 +45,7 @@ void set_HOGs(vector<HOGDescriptor>& hogs,int global_size,vector<int>& vnum_lmks
     set_hog_params(hogs[i], pix_in_cell, 3, 4);
 }
 
-vector<Mat> mats_read(const char* filename)
+inline vector<Mat> mats_read(const char* filename)
 {
   vector<Mat> vM;
   FILE* file = fopen(filename, "rb");
@@ -60,7 +66,7 @@ vector<Mat> mats_read(const char* filename)
   fclose(file);
   return vM;
 }
-bool mats_write(const char* filename, vector<Mat>& vM)
+inline bool mats_write(const char* filename, vector<Mat>& vM)
 {
   FILE* file = fopen(filename, "wb");
   if (file == NULL || vM.empty())
@@ -105,7 +111,7 @@ inline shape2d mat_to_shape2d(Mat & v)
   return pts;
 }
 
-shape2d read_pts_landmarks(const std::string filename)
+inline shape2d read_pts_landmarks(const std::string filename)
 {
   using std::getline;
   shape2d landmarks;
@@ -138,7 +144,7 @@ shape2d read_pts_landmarks(const std::string filename)
   }
   return landmarks;
 };
-void read_names_pair(const string &strListName, const string &strFilePath,
+inline void read_names_pair(const string &strListName, const string &strFilePath,
   const string& pts_ext, const string& img_ext,
   vector<string> &vstrShapeName, vector<string> &vstrImageName)
 {
@@ -169,7 +175,7 @@ void read_names_pair(const string &strListName, const string &strFilePath,
   }
 }
 
-vector<float> extract_HOG_descriptor(Mat & roiImg, vector<Point2f>& pt_shape, HOGDescriptor& hog, int num_idx_lmk, vector<int>& idx_lmk)
+inline vector<float> extract_HOG_descriptor(Mat & roiImg, vector<Point2f>& pt_shape, HOGDescriptor& hog, int num_idx_lmk, vector<int>& idx_lmk)
 {
   int half_wid = hog.winSize.width >> 1;
   vector<float> des;
@@ -196,7 +202,7 @@ vector<float> extract_HOG_descriptor(Mat & roiImg, vector<Point2f>& pt_shape, HO
   return des;
 }
 
-void draw_shape(Mat& imcanvas, shape2d& pts, cv::Scalar color)
+inline void draw_shape(Mat& imcanvas, shape2d& pts, cv::Scalar color)
 {
   for (int j = 0; j < pts.size(); j++)
     cv::circle(imcanvas, cv::Point(pts[j].x, pts[j].y), 2, color, -1);
